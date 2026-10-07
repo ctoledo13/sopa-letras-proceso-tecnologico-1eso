@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sopa de Letras: El Proceso Tecnológico</title>
+    <!-- Librería externa para generación automática de PDF en el navegador -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #f0f4f8;
+            --primary: #2b6cb0;
+            --primary-dark: #1a4971;
+            --accent: #d69e2e;
+            --correct: #38a169;
+            --text: #2d3748;
+            --selected: #4299e1;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: #1a365d;
+            margin-bottom: 5px;
+            font-size: 1.8rem;
+        }
+
+        p.subtitle {
+            color: #4a5568;
+            font-weight: 500;
+        }
+
+        .stats-panel {
+            display: flex;
+            gap: 15px;
+            background: white;
+            padding: 12px 25px;
+            border-radius: 50px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-bottom: 25px;
+            font-weight: bold;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .stat-value {
+            background: #edf2f7;
+            padding: 4px 10px;
+            border-radius: 12px;
+            color: var(--primary);
+        }
+
+        .game-layout {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 25px;
+            width: 100%;
+            max-width: 1100px;
+        }
+
+        @media (min-width: 900px) {
+            .game-layout {
+                flex-direction: row;
+                justify-content: center;
+                align-items: flex-start;
+            }
+        }
+
+        /* SOPA DE LETRAS TABLERO */
+        .grid-container {
+            background: white;
+            padding: 15px;
+            border-radius: 16px;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+            user-select: none;
+            touch-action: none;
+        }
+
+        .word-search-grid {
+            display: grid;
+            grid-template-columns: repeat(14, 1fr);
+            gap: 4px;
+        }
+
+        .cell {
+            width: 32px;
+            height: 32px;
+            background-color: #edf2f7;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1rem;
+            color: #2d3748;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        @media (max-width: 500px) {
+            .cell {
+                width: 22px;
+                height: 22px;
+                font-size: 0.75rem;
+            }
+        }
+
+        .cell:hover {
+            background-color: #cbd5e0;
+        }
+
+        .cell.selected {
+            background-color: var(--selected) !important;
+            color: white !important;
+            transform: scale(1.05);
+        }
+
+        .cell.found {
+            background-color: var(--correct) !important;
+            color: white !important;
+        }
+
+        /* LISTA DE PALABRAS Y DEFINICIONES */
+        .words-panel {
+            background: white;
+            padding: 22px;
+            border-radius: 16px;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 450px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .panel-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: var(--primary-dark);
+            border-bottom: 2px solid #edf2f7;
+            padding-bottom: 8px;
+        }
+
+        .word-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 380px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        .word-item {
+            background: #f8fafc;
+            border: 1px stroke #e2e8f0;
+            border-left: 4px solid var(--primary);
+            padding: 10px 12px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .word-item.found {
+            border-left-color: var(--correct);
+            background: #f0fff4;
+            opacity: 0.85;
+        }
+
+        .word-item.found .word-name {
+            text-decoration: line-through;
+            color: var(--correct);
+        }
+
+        .word-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .word-name {
+            font-weight: bold;
+            font-size: 0.95rem;
+            letter-spacing: 0.5px;
+        }
+
+        .word-def {
+            font-size: 0.85rem;
+            color: #4a5568;
+            line-height: 1.3;
+        }
+
+        button {
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-restart {
+            background-color: var(--primary);
+            color: white;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .btn-restart:hover {
+            background-color: var(--primary-dark);
+        }
+
+        /* MODAL FINAL Y GENERACIÓN DE PDF */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 16px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .pdf-student-input {
+            margin: 15px 0;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .pdf-student-input input {
+            padding: 8px 12px;
+            border: 1px solid #cbd5e0;
+            border-radius: 6px;
+            flex: 1;
+        }
+
+        .btn-pdf {
+            background-color: var(--correct);
+            color: white;
+            width: 100%;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>🛠️ Sopa de Letras: El Proceso Tecnológico</h1>
+        <p class="subtitle">Tecnología y Digitalización - 1º ESO (Prof. Carlos Alberto Toledo)</p>
+    </header>
+
+    <div class="stats-panel">
+        <div class="stat-item">Encontradas: <span id="found-count" class="stat-value">0 / 10</span></div>
+        <div class="stat-item">Tiempo: <span id="timer" class="stat-value">00:00</span></div>
+    </div>
+
+    <div class="game-layout">
+        <div class="grid-container">
+            <div class="word-search-grid" id="grid"></div>
+        </div>
+
+        <div class="words-panel">
+            <div class="panel-title">🔍 Vocabulario a encontrar</div>
+            <div class="word-list" id="word-list-container"></div>
+            <button class="btn-restart" onclick="restartGame()">Reiniciar Juego 🔄</button>
+        </div>
+    </div>
+
+    <!-- MODAL FINAL CON REPORTE Y EXPORTACIÓN A PDF -->
+    <div id="end-modal" class="modal">
+        <div class="modal-content">
+            <div id="pdf-report-area">
+                <div style="text-align: center; border-bottom: 2px solid #edf2f7; padding-bottom: 10px; margin-bottom: 15px;">
+                    <h2>¡Sopa de Letras Completada! 🎉</h2>
+                    <p id="report-date" style="font-size: 0.85rem; color: #718096;"></p>
+                </div>
+
+                <div class="pdf-student-input">
+                    <label><strong>Alumno/a:</strong></label>
+                    <input type="text" id="student-name" placeholder="Escribe tu nombre y apellidos...">
+                </div>
+
+                <div class="stats-panel" style="box-shadow: none; border: 1px solid #e2e8f0; margin-bottom: 15px;">
+                    <div class="stat-item">Palabras: <span class="stat-value">10 / 10</span></div>
+                    <div class="stat-item">Tiempo Total: <span id="final-time" class="stat-value">00:00</span></div>
+                </div>
+
+                <h3 style="font-size: 1rem; margin-bottom: 10px;">Vocabulario Repasado:</h3>
+                <ul id="summary-list" style="font-size: 0.88rem; line-height: 1.6; padding-left: 20px; color: #2d3748;"></ul>
+            </div>
+
+            <button class="btn-pdf" onclick="downloadPDF()">📄 Descargar Resumen en PDF para el Profesor</button>
+            <button class="btn-restart" onclick="restartGame()" style="background-color: #718096;">Volver a Jugar</button>
+        </div>
+    </div>
+
+    <script>
+        const wordsData = [
+            { word: 'NECESIDAD', def: '1ª fase: Análisis del problema e identificación de lo que se requiere resolver.' },
+            { word: 'IDEA', def: '2ª fase: Propuesta de alternativas y selección de la mejor solución.' },
+            { word: 'DESARROLLO', def: '3ª fase: Elaboración de planos, presupuestos y plan de construcción.' },
+            { word: 'CONSTRUCCION', def: '4ª fase: Fabricación física del objeto en el taller usando herramientas.' },
+            { word: 'VERIFICACION', def: '5ª fase: Evaluación del objeto fabricado y redacción de la memoria final.' },
+            { word: 'ANTECEDENTES', def: 'Estudio de proyectos o soluciones creadas previamente para problemas parecidos.' },
+            { word: 'PRESUPUESTO', def: 'Cálculo detallado del coste económico de materiales y herramientas.' },
+            { word: 'PLANOS', def: 'Dibujos técnicos detallados con medidas exactas del prototipo.' },
+            { word: 'MEMORIA', def: 'Documento técnico final escrito que resume todo el proceso realizado.' },
+            { word: 'PROTOTIPO', def: 'Primer objeto funcional que se construye para probar su eficacia.' }
+        ];
+
+        const GRID_SIZE = 14;
+        let gridMatrix = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(''));
+        let foundWords = new Set();
+        let selectedCells = [];
+        let isMouseDown = false;
+        let timerInterval = null;
+        let secondsElapsed = 0;
+
+        // Generar Tablero con Palabras Ubicadas
+        function generateGrid() {
+            gridMatrix = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(''));
+            
+            wordsData.forEach(item => {
+                let placed = false;
+                while (!placed) {
+                    const dir = Math.floor(Math.random() * 2); // 0: Horizontal, 1: Vertical
+                    const row = Math.floor(Math.random() * (dir === 1 ? GRID_SIZE - item.word.length : GRID_SIZE));
+                    const col = Math.floor(Math.random() * (dir === 0 ? GRID_SIZE - item.word.length : GRID_SIZE));
+
+                    let canPlace = true;
+                    for (let i = 0; i < item.word.length; i++) {
+                        const r = row + (dir === 1 ? i : 0);
+                        const c = col + (dir === 0 ? i : 0);
+                        if (gridMatrix[r][c] !== '' && gridMatrix[r][c] !== item.word[i]) {
+                            canPlace = false;
+                            break;
+                        }
+                    }
+
+                    if (canPlace) {
+                        for (let i = 0; i < item.word.length; i++) {
+                            const r = row + (dir === 1 ? i : 0);
+                            const c = col + (dir === 0 ? i : 0);
+                            gridMatrix[r][c] = item.word[i];
+                        }
+                        placed = true;
+                    }
+                }
+            });
+
+            // Rellenar casillas vacías con letras aleatorias
+            const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    if (gridMatrix[r][c] === '') {
+                        gridMatrix[r][c] = alphabet[Math.floor(Math.random() * alphabet.length)];
+                    }
+                }
+            }
+        }
+
+        function renderGrid() {
+            const gridElem = document.getElementById('grid');
+            gridElem.innerHTML = '';
+
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.innerText = gridMatrix[r][c];
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+
+                    cell.addEventListener('mousedown', () => startSelection(r, c));
+                    cell.addEventListener('mouseenter', () => extendSelection(r, c));
+                    cell.addEventListener('mouseup', endSelection);
+
+                    cell.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        startSelection(r, c);
+                    });
+
+                    gridElem.appendChild(cell);
+                }
+            }
+
+            document.addEventListener('mouseup', endSelection);
+        }
+
+        function renderWordList() {
+            const container = document.getElementById('word-list-container');
+            container.innerHTML = '';
+
+            wordsData.forEach(item => {
+                const isFound = foundWords.has(item.word);
+                const div = document.createElement('div');
+                div.className = `word-item ${isFound ? 'found' : ''}`;
+                div.id = `word-${item.word}`;
+                div.innerHTML = `
+                    <div class="word-header">
+                        <span class="word-name">${item.word}</span>
+                        ${isFound ? '<span>✅</span>' : ''}
+                    </div>
+                    <div class="word-def">${item.def}</div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function startSelection(r, c) {
+            isMouseDown = true;
+            selectedCells = [{ r, c }];
+            updateSelectionUI();
+        }
+
+        function extendSelection(r, c) {
+            if (!isMouseDown) return;
+            const start = selectedCells[0];
+            
+            if (start.r === r || start.c === c) {
+                selectedCells = [];
+                const rMin = Math.min(start.r, r), rMax = Math.max(start.r, r);
+                const cMin = Math.min(start.c, c), cMax = Math.max(start.c, c);
+
+                for (let row = rMin; row <= rMax; row++) {
+                    for (let col = cMin; col <= cMax; col++) {
+                        selectedCells.push({ r: row, c: col });
+                    }
+                }
+                updateSelectionUI();
+            }
+        }
+
+        function endSelection() {
+            if (!isMouseDown) return;
+            isMouseDown = false;
+
+            const selectedWord = selectedCells.map(cell => gridMatrix[cell.r][cell.c]).join('');
+            const reversedWord = selectedWord.split('').reverse().join('');
+
+            const match = wordsData.find(w => w.word === selectedWord || w.word === reversedWord);
+
+            if (match && !foundWords.has(match.word)) {
+                foundWords.add(match.word);
+                selectedCells.forEach(cell => {
+                    const elem = getCellElem(cell.r, cell.c);
+                    if (elem) elem.classList.add('found');
+                });
+                document.getElementById('found-count').innerText = `${foundWords.size} / ${wordsData.length}`;
+                renderWordList();
+
+                if (foundWords.size === wordsData.length) {
+                    endGame();
+                }
+            }
+
+            selectedCells = [];
+            updateSelectionUI();
+        }
+
+        function updateSelectionUI() {
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach(cell => cell.classList.remove('selected'));
+
+            selectedCells.forEach(cell => {
+                const elem = getCellElem(cell.r, cell.c);
+                if (elem && !elem.classList.contains('found')) {
+                    elem.classList.add('selected');
+                }
+            });
+        }
+
+        function getCellElem(r, c) {
+            return document.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            secondsElapsed = 0;
+            timerInterval = setInterval(() => {
+                secondsElapsed++;
+                const mins = String(Math.floor(secondsElapsed / 60)).padStart(2, '0');
+                const secs = String(secondsElapsed % 60).padStart(2, '0');
+                document.getElementById('timer').innerText = `${mins}:${secs}`;
+            }, 1000);
+        }
+
+        function endGame() {
+            clearInterval(timerInterval);
+            document.getElementById('final-time').innerText = document.getElementById('timer').innerText;
+            document.getElementById('report-date').innerText = `Fecha: ${new Date().toLocaleDateString('es-ES')} - ${new Date().toLocaleTimeString('es-ES')}`;
+
+            const summaryList = document.getElementById('summary-list');
+            summaryList.innerHTML = '';
+            wordsData.forEach(w => {
+                const li = document.createElement('li');
+                li.innerHTML = `<strong>${w.word}:</strong> ${w.def}`;
+                summaryList.appendChild(li);
+            });
+
+            document.getElementById('end-modal').style.display = 'flex';
+        }
+
+        function downloadPDF() {
+            const studentName = document.getElementById('student-name').value.trim() || 'Alumno_Anonimo';
+            const element = document.getElementById('pdf-report-area');
+            
+            const opt = {
+                margin:       10,
+                filename:     `Sopa_Proceso_Tecnologico_${studentName.replace(/\s+/g, '_')}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opt).from(element).save();
+        }
+
+        function restartGame() {
+            foundWords.clear();
+            selectedCells = [];
+            document.getElementById('found-count').innerText = `0 / ${wordsData.length}`;
+            document.getElementById('end-modal').style.display = 'none';
+            generateGrid();
+            renderGrid();
+            renderWordList();
+            startTimer();
+        }
+
+        window.onload = function() {
+            generateGrid();
+            renderGrid();
+            renderWordList();
+            startTimer();
+        };
+    </script>
+</body>
+</html>
